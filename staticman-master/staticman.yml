@@ -1,0 +1,25 @@
+comments:
+  path: "data/selections"
+  filename: "entry-:date"
+  fields:
+    user:
+      type: "string"
+      required: true
+    date:
+      type: "string"
+      required: true
+  branch: "master"
+  format: "json"
+  allowedFields: ["user", "date"]
+  moderation: false
+  commitMessage: "New submission from [Staticman]"
+  commitFields:
+    user: "User"
+    date: "Date"
+  generatedFields:
+    date:
+      type: "date"
+      options:
+        format: "iso8601"
+  transform:
+    _append: true
