@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日期小幫手</title>
+    <style>
+        /* CSS 樣式 */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .calendar-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            max-width: 600px;
+            margin: 20px 0;
+        }
+        .day-header {
+            font-weight: bold;
+            text-align: center;
+            background-color: #ddd;
+            padding: 10px;
+        }
+        .day {
+            background-color: white;
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+        }
+        .day.selected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .day.empty {
+            background-color: #ddd;
+        }
+        .user-buttons {
+            margin: 20px 0;
+        }
+        .user-buttons button {
+            margin: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        .view-all-button {
+            margin: 20px 0;
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .no-selection {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #ffcccc;
+            border: 1px solid #ff0000;
+            color: #ff0000;
+            display: none;
+        }
+        .year-month-select {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>日期小幫手</h1>
+    <div class="user-buttons">
+        <button data-user="user1">姸姸</button>
+        <button data-user="user2">YC_Lin</button>
+        <button data-user="user3">楊雅君</button>
+        <button data-user="user4">Sharon Hung</button>
+        <button data-user="user5">黃莛睿</button>
+        <button data-user="user6">Tanya(領隊)</button>
+        <button data-user="user7">Cheryl</button>
+        <button data-user="user8">雞蛋妹_穎柔</button>
+    </div>
+    <div class="year-month-select">
+        <label for="year-select">Select Year:</label>
+        <select id="year-select">
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+            <!-- 根據需求添加更多年份 -->
+        </select>
+        <label for="month-select">Select Month:</label>
+        <select id="month-select">
+            <option value="0">January一月</option>
+            <option value="1">February二月</option>
+            <option value="2">March三月</option>
+            <option value="3">April四月</option>
+            <option value="4">May五月</option>
+            <option value="5">June六月</option>
+            <option value="6">July七月</option>
+            <option value="7">August八月</option>
+            <option value="8">September九月</option>
+            <option value="9">October十月</option>
+            <option value="10">November十一月</option>
+            <option value="11">December十二月</option>
+        </select>
+    </div>
+    <div class="calendar-container">
+        <div class="calendar" id="calendar">
+            <!-- 動態生成日歷 -->
+        </div>
+    </div>
+    <button class="view-all-button" id="view-all-button">檢視全部選擇結果</button>
+    <div class="no-selection">
+        未被選中日期: <span id="no-selection-dates"></span>
+    </div>
+
+    <!-- 提交表單 -->
+    <form id="submit-form" action="<YOUR_STATICMAN_DEPLOY_URL>/v3/entry/github/<USERNAME>/<REPO_NAME>/<BRANCH>" method="POST">
+        <input type="hidden" name="fields[month]" id="month-field">
+        <input type="hidden" name="fields[year]" id="year-field">
+        <input type="hidden" name="fields[selections]" id="selections-field">
+        <button type="submit">提交選擇</button>
+    </form>
+
+    <script>
+        const daysInMonth = (month, year) => new Date(year, month + 1, 0).getDate();
+        const firstDayOfMonth = (month, year) => new Date(year, month, 1).getDay();
+        const calendarElement = document.getElementById('calendar');
+        const yearSelect = document.getElementById('year-select');
+        const monthSelect = document.getElementById('month-select');
+        const viewAllButton = document.getElementById('view-all-button');
+        const submitForm = document.getElementById('submit-form');
+        const monthField = document.getElementById('month-field');
+        const yearField = document.getElementById('year-field');
+        const selectionsField = document.getElementById('selections-field');
+        const selections = {};  // 儲存每個用戶選擇
+        let selectedUser = null;
+        let currentMonth = new Date().getMonth();
+        let currentYear = new Date().getFullYear();
+        let viewAllMode = false; // 跟蹤按鈕狀態
+        let lastSelectedUser = null; // 儲存上一次被選中用戶
+
+        const dayNames = ['日', '一', '二', '三', '四', '五', '六'];
+
+        // 生成Calendar
+        function generateCalendar(month, year) {
+            calendarElement.innerHTML = '';
+            
+            // 添加星期標題
+            dayNames.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.classList.add('day-header');
+                dayHeader.textContent = day;
+                calendarElement.appendChild(dayHeader);
+            });
+
+            const days = daysInMonth(month, year);
+            const firstDay = firstDayOfMonth(month, year);
+
+            // 添加空白格子以對其日期
+            for (let i = 0; i < firstDay; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.classList.add('day', 'empty');
+                calendarElement.appendChild(emptyCell);
+            }
+
+            // 添加日期格子
+            for (let i = 1; i <= days; i++) {
+                const dayElement = document.createElement('div');
+                dayElement.classList.add('day');
+                dayElement.textContent = i;
+                dayElement.dataset.day = i;
+                calendarElement.appendChild(dayElement);
+            }
+
+            updateCalendar();
+            updateNoSelectionDates();
+        }
+
+        // 保存结果到 localStorage
+        function saveSelections(user) {
+            localStorage.setItem(`selections-${user}`, JSON.stringify(selections[user]));
+        }
+
+        // 从 localStorage 初始化结果
+        function initializeSelections(user) {
+            const storedSelections = localStorage.getItem(`selections-${user}`);
+            if (storedSelections) {
+                selections[user] = JSON.parse(storedSelections);
+            } else {
+                selections[user] = {};
+            }
+            updateCalendar();
+        }
+
+        // 更新Calendar显示
+        function updateCalendar() {
+            const days = Array.from(calendarElement.children).filter(cell => !cell.classList.contains('day-header') && !cell.classList.contains('empty'));
+            const monthYearKey = `${currentYear}-${currentMonth}`;
+
+            days.forEach(dayElement => {
+                const day = dayElement.dataset.day;
+                if (viewAllMode) {
+                    const allSelectedDays = new Set(Object.values(selections).flatMap(selection => (selection[monthYearKey] || [])));
+                    if (allSelectedDays.has(day)) {
+                        dayElement.classList.add('selected');
+                    } else {
+                        dayElement.classList.remove('selected');
+                    }
+                } else if (selections[selectedUser] && selections[selectedUser][monthYearKey] && selections[selectedUser][monthYearKey].includes(day)) {
+                    dayElement.classList.add('selected');
+                } else {
+                    dayElement.classList.remove('selected');
+                }
+            });
+        }
+
+        // 更新無選擇日期
+        function updateNoSelectionDates() {
+            const allDays = Array.from({ length: daysInMonth(currentMonth, currentYear) }, (_, i) => (i + 1).toString());
+            const monthYearKey = `${currentYear}-${currentMonth}`;
+            const selectedDays = new Set(Object.values(selections).flatMap(selection => selection[monthYearKey] || []));
+            const noSelectionDays = allDays.filter(day => !selectedDays.has(day));
+
+            const noSelectionElement = document.querySelector('.no-selection');
+            const noSelectionDatesElement = document.getElementById('no-selection-dates');
+
+            if (noSelectionDays.length > 0) {
+                noSelectionDatesElement.textContent = noSelectionDays.map(day => `${currentMonth + 1}/${day}`).join(', ');
+                noSelectionElement.style.display = 'block';
+            } else {
+                noSelectionElement.style.display = 'none';
+            }
+        }
+
+        // 切換查看已選日期
+        function toggleViewAllSelectedDates() {
+            if (!viewAllMode) {
+                viewAllMode = true;
+                lastSelectedUser = selectedUser;
+                selectedUser = null;
+                viewAllButton.textContent = "返回到 " + document.querySelector(`button[data-user="${lastSelectedUser}"]`).textContent;
+                updateCalendar();
+            } else {
+                viewAllMode = false;
+                viewAllButton.textContent = "檢視全部選擇結果";
+                selectedUser = lastSelectedUser;
+                updateCalendar();
+            }
+        }
+
+        // 日歷點擊事件處理
+        calendarElement.addEventListener('click', (e) => {
+            if (e.target.classList.contains('day')) {
+                const day = e.target.dataset.day;
+                const monthYearKey = `${currentYear}-${currentMonth}`;
+
+                if (!selections[selectedUser]) {
+                    selections[selectedUser] = {};
+                }
+
+                if (!selections[selectedUser][monthYearKey]) {
+                    selections[selectedUser][monthYearKey] = [];
+                }
+
+                if (selections[selectedUser][monthYearKey].includes(day)) {
+                    selections[selectedUser][monthYearKey] = selections[selectedUser][monthYearKey].filter(d => d !== day);
+                    e.target.classList.remove('selected');
+                } else {
+                    selections[selectedUser][monthYearKey].push(day);
+                    e.target.classList.add('selected');
+                }
+
+                saveSelections(selectedUser);
+                updateNoSelectionDates();
+            }
+        });
+
+        // 用户按鈕點擊事件處理
+        document.querySelector('.user-buttons').addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                selectedUser = e.target.dataset.user;
+                initializeSelections(selectedUser);
+            }
+        });
+
+        // 年和月選擇
+        yearSelect.addEventListener('change', () => {
+            currentYear = parseInt(yearSelect.value);
+            generateCalendar(currentMonth, currentYear);
+        });
+
+        monthSelect.addEventListener('change', () => {
+            currentMonth = parseInt(monthSelect.value);
+            generateCalendar(currentMonth, currentYear);
+        });
+
+        // 查看所有已選日期按紐點擊事件
+        viewAllButton.addEventListener('click', toggleViewAllSelectedDates);
+
+        // 初始化
+        selectedUser = 'user1'; // 默認第一个用户
+        yearSelect.value = currentYear;
+        monthSelect.value = currentMonth;
+        initializeSelections(selectedUser);
+        generateCalendar(currentMonth, currentYear);
+
+        // 提交表單數據
+        submitForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            monthField.value = currentMonth;
+            yearField.value = currentYear;
+            selectionsField.value = JSON.stringify(selections);
+
+            submitForm.submit();
+        });
+    </script>
+</body>
+</html>
